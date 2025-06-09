@@ -89,13 +89,13 @@ const PricingPlans: React.FC = () => {
                   </Badge>
                 )}
                 
-                <<a href={plan.checkoutUrl} target="_blank" rel="noopener noreferrer">
+               <a href={plan.checkoutUrl} target="_blank" rel="noopener noreferrer">
   <button className="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded">
     {plan.popular ? 'Get PRO Now' : 'Select Plan'}
   </button>
 </a>
-}
-                />
+
+              
               </div>
             </div>
           ))}
