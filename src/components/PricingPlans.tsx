@@ -9,41 +9,31 @@ const PricingPlans: React.FC = () => {
   const [isYearly, setIsYearly] = useState(false);
 
   const monthlyPlans = [
-    {
-      name: 'Monthly',
-      price: '$9.99',
-      period: '/month',
-      priceId: 'price_monthly_pro',
-      popular: false
-    },
-    {
-      name: '3 Months',
-      price: '$24.99',
-      period: '/3 months',
-      priceId: 'price_3month_pro',
-      popular: true,
-      savings: 'Save 17%'
-    },
-    {
-      name: '6 Months',
-      price: '$39.99',
-      period: '/6 months',
-      priceId: 'price_6month_pro',
-      popular: false,
-      savings: 'Save 33%'
-    }
-  ];
+  {
+    name: 'Monthly',
+    price: '$9.99',
+    period: '/month',
+    checkoutUrl: 'https://buy.stripe.com/28E8wR0Ku5tM5ck1eT9Zm03',
+    popular: false
+  },
+  {
+    name: '3 Months',
+    price: '$24.99',
+    period: '/3 months',
+    checkoutUrl: 'https://buy.stripe.com/cNibJ350K6xQ2084r59Zm02',
+    popular: true,
+    savings: 'Save 17%'
+  },
+  {
+    name: '6 Months',
+    price: '$39.99',
+    period: '/6 months',
+    checkoutUrl: 'https://buy.stripe.com/dRm9AV3WG4pIeMUg9N9Zm01',
+    popular: false,
+    savings: 'Save 33%'
+  }
+];
 
-  const yearlyPlans = [
-    {
-      name: 'Yearly',
-      price: '$79.99',
-      period: '/year',
-      priceId: 'price_yearly_pro',
-      popular: true,
-      savings: 'Save 33%'
-    }
-  ];
 
   const currentPlans = isYearly ? yearlyPlans : monthlyPlans;
 
@@ -99,11 +89,12 @@ const PricingPlans: React.FC = () => {
                   </Badge>
                 )}
                 
-                <StripeCheckout
-                  planName={plan.name}
-                  price={plan.price}
-                  priceId={plan.priceId}
-                  popular={plan.popular}
+                <<a href={plan.checkoutUrl} target="_blank" rel="noopener noreferrer">
+  <button className="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded">
+    {plan.popular ? 'Get PRO Now' : 'Select Plan'}
+  </button>
+</a>
+}
                 />
               </div>
             </div>
