@@ -1,20 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  User, 
-  Crown, 
-  Bell, 
-  Moon, 
-  LogOut, 
-  Trash2, 
-  HelpCircle,
-  ArrowLeft 
+import {
+  Bell,
+  Moon,
+  LogOut,
+  Trash2,
+  ArrowLeft,
+  EyeOff,
+  Crown
 } from 'lucide-react';
 
 interface SettingsScreenProps {
@@ -22,76 +22,87 @@ interface SettingsScreenProps {
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose }) => {
-  const { currentUser, userProfile, isPremium } = useAppContext();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [notifications, setNotifications] = React.useState(true);
-  const [darkMode, setDarkMode] = React.useState(false);
-  const [isUpgrading, setIsUpgrading] = React.useState(false);
+  const { isPremium } = useAppContext();
 
-  const handleUpgrade = async () => {
-    if (isUpgrading) return;
-    setIsUpgrading(true);
-    
-    try {
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!token) {
-        toast({ title: "Please sign in first", variant: "destructive" });
-        return;
-      }
+  const [notifications, setNotifications] = useState(true);
 
-      const response = await fetch(
-        'https://sstmnoilasukcxjacrjj.supabase.co/functions/v1/45785200-a879-4b5f-8db6-d160e67743dc',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            priceId: 'monthly',
-            userId: currentUser?.id,
-            successUrl: `${window.location.origin}?upgrade=success`,
-            cancelUrl: `${window.location.origin}?upgrade=cancelled`
-          })
-        }
-      );
+  const [incognitoMode, setIncognitoMode] = useState(() => {
+    return localStorage.getItem('incognitoMode') === 'true';
+  });
 
-      const data = await response.json();
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-    } catch (error: any) {
-      console.error('Upgrade error:', error);
-      toast({ 
-        title: "Upgrade failed", 
-        description: error.message || "Please try again",
-        variant: "destructive" 
+  const [darkMode, setDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme === 'dark';
+  });
+
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const [hiddenUsers, setHiddenUsers] = useState<string[]>([]);
+
+  useEffect(() => {
+    const blocked = JSON.parse(localStorage.getItem('blockedUsers') || '[]');
+    const hidden = JSON.parse(localStorage.getItem('hiddenUsers') || '[]');
+    setBlockedUsers(blocked);
+    setHiddenUsers(hidden);
+  }, []);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+    const newTheme = darkMode ? 'dark' : 'light';
+    root.classList.add(newTheme);
+    localStorage.setItem('theme', newTheme);
+  }, [darkMode]);
+
+  const handleIncognitoToggle = (checked: boolean) => {
+    if (!isPremium) {
+      toast({
+        title: 'PRO Feature',
+        description: 'Upgrade to PRO to use Incognito Mode',
+        variant: 'destructive'
       });
-    } finally {
-      setIsUpgrading(false);
+      return;
     }
+
+    setIncognitoMode(checked);
+    localStorage.setItem('incognitoMode', checked.toString());
+
+    toast({
+      title: checked ? 'Incognito Mode Enabled' : 'Incognito Mode Disabled',
+      description: checked
+        ? 'Your online status is now hidden from other users'
+        : 'Your online status is now visible to other users'
+    });
+
+    window.dispatchEvent(new CustomEvent('incognitoModeChanged', {
+      detail: { incognitoMode: checked }
+    }));
   };
 
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({ title: "Signed out successfully" });
-    } catch (error) {
-      console.error('Sign out error:', error);
-      toast({ title: "Error signing out", variant: "destructive" });
-    }
+  const unblockUser = (userId: string) => {
+    const updated = blockedUsers.filter(id => id !== userId);
+    setBlockedUsers(updated);
+    localStorage.setItem('blockedUsers', JSON.stringify(updated));
+    toast({ title: 'User unblocked' });
   };
 
-  const handleDeleteAccount = async () => {
-    if (confirm('Are you sure you want to delete your account? This cannot be undone.')) {
-      try {
-        toast({ title: "Account deletion requested", description: "Contact support to complete" });
-      } catch (error) {
-        toast({ title: "Error deleting account", variant: "destructive" });
-      }
+  const unhideUser = (userId: string) => {
+    const updated = hiddenUsers.filter(id => id !== userId);
+    setHiddenUsers(updated);
+    localStorage.setItem('hiddenUsers', JSON.stringify(updated));
+    toast({ title: 'User unhidden' });
+  };
+
+  const handleSignOut = () => {
+    localStorage.clear();
+    window.dispatchEvent(new StorageEvent('storage', { key: 'user' }));
+    setTimeout(() => window.location.reload(), 500);
+  };
+
+  const handleDeleteAccount = () => {
+    if (confirm('Are you sure you want to delete your account?')) {
+      toast({ title: 'Contact support to delete account' });
     }
   };
 
@@ -103,55 +114,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose }) => {
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <h1 className="text-2xl font-bold">Settings</h1>
+          {isPremium && <Badge className="bg-yellow-500 text-white"><Crown className="w-3 h-3 mr-1" />PRO</Badge>}
         </div>
 
-        {/* Account Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Account Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-600">Email</p>
-              <p className="font-medium">{currentUser?.email}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Display Name</p>
-              <p className="font-medium">{userProfile?.display_name || 'Not set'}</p>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Subscription Plan</p>
-                <p className="font-medium flex items-center gap-2">
-                  {isPremium ? (
-                    <>
-                      <Crown className="w-4 h-4 text-yellow-500" />
-                      Tappd PRO
-                    </>
-                  ) : (
-                    'Free Plan'
-                  )}
-                </p>
-              </div>
-              {!isPremium && (
-                <Button 
-                  size="sm" 
-                  className="bg-gradient-to-r from-purple-500 to-pink-500"
-                  onClick={handleUpgrade}
-                  disabled={isUpgrading}
-                >
-                  <Crown className="w-4 h-4 mr-1" />
-                  {isUpgrading ? 'Processing...' : 'Upgrade'}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Preferences */}
         <Card>
           <CardHeader>
             <CardTitle>Preferences</CardTitle>
@@ -162,59 +127,84 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose }) => {
                 <Bell className="w-4 h-4" />
                 <span>Push Notifications</span>
               </div>
-              <Switch 
-                checked={notifications} 
-                onCheckedChange={setNotifications}
-              />
+              <Switch checked={notifications} onCheckedChange={setNotifications} />
             </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Moon className="w-4 h-4" />
                 <span>Dark Mode</span>
               </div>
-              <Switch 
-                checked={darkMode} 
-                onCheckedChange={setDarkMode}
+              <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <EyeOff className="w-4 h-4" />
+                <span>Incognito Mode</span>
+                {!isPremium && <Badge variant="outline" className="text-xs">PRO</Badge>}
+              </div>
+              <Switch
+                checked={incognitoMode}
+                onCheckedChange={handleIncognitoToggle}
+                disabled={!isPremium}
               />
             </div>
+
+            {!isPremium && (
+              <div className="pt-2">
+                <Button
+                  onClick={() => navigate('/upgrade')}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-white"
+                >
+                  <Crown className="w-4 h-4 mr-2" /> Upgrade to PRO
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Support */}
         <Card>
           <CardHeader>
-            <CardTitle>Support & Help</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full justify-start">
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Contact Support
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Account Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Actions</CardTitle>
+            <CardTitle>Blocked Profiles</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button 
-              onClick={handleSignOut}
-              variant="outline" 
-              className="w-full justify-start"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+            {blockedUsers.length === 0 && <p className="text-gray-500">No blocked users.</p>}
+            {blockedUsers.map(userId => (
+              <div key={userId} className="flex justify-between items-center">
+                <span className="text-sm text-gray-700">User ID: {userId}</span>
+                <Button size="sm" onClick={() => unblockUser(userId)}>Unblock</Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Hidden Profiles</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {hiddenUsers.length === 0 && <p className="text-gray-500">No hidden users.</p>}
+            {hiddenUsers.map(userId => (
+              <div key={userId} className="flex justify-between items-center">
+                <span className="text-sm text-gray-700">User ID: {userId}</span>
+                <Button size="sm" onClick={() => unhideUser(userId)}>Unhide</Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button onClick={handleSignOut} variant="outline" className="w-full justify-start">
+              <LogOut className="w-4 h-4 mr-2" /> Sign Out
             </Button>
             <Separator />
-            <Button 
-              onClick={handleDeleteAccount}
-              variant="destructive" 
-              className="w-full justify-start"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Account
+            <Button onClick={handleDeleteAccount} variant="destructive" className="w-full justify-start">
+              <Trash2 className="w-4 h-4 mr-2" /> Delete Account
             </Button>
           </CardContent>
         </Card>

@@ -48,7 +48,25 @@ export const ProfileViewScreen: React.FC<ProfileViewScreenProps> = ({
   };
 
   const handleMessage = () => {
-    onMessage?.(userId);
+    console.log('🚀 Message button clicked!');
+    console.log('🎯 User ID:', userId);
+    console.log('📞 onMessage function:', onMessage);
+    
+    if (onMessage) {
+      console.log('✅ Calling onMessage with userId:', userId);
+      onMessage(userId);
+      toast({ 
+        title: "Opening Messages", 
+        description: `Starting conversation with ${user.name}` 
+      });
+    } else {
+      console.log('❌ onMessage function is not available');
+      toast({ 
+        title: "Error", 
+        description: "Message function not available",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

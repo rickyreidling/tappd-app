@@ -51,10 +51,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-gray-50">
-      <Card className="border-0 shadow-lg">
+    <div className="max-w-md mx-auto min-h-screen bg-gray-50 dark:bg-black text-black dark:text-white">
+      <Card className="border-0 shadow-lg bg-white dark:bg-zinc-900">
         <CardContent className="p-0">
-          <div className="flex items-center justify-between p-4 border-b bg-white">
+          <div className="flex items-center justify-between p-4 border-b bg-white dark:bg-zinc-900 dark:border-zinc-700">
             {onBack && (
               <Button variant="ghost" size="sm" onClick={onBack}>
                 <ArrowLeft className="h-4 w-4" />
@@ -64,7 +64,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <ProfileActions userId={userId} userName={name} />
           </div>
 
-          <div className="relative aspect-square bg-gray-100">
+          <div className="relative aspect-square bg-gray-100 dark:bg-zinc-800">
             {photos.length > 0 ? (
               <>
                 <img
@@ -97,7 +97,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             )}
           </div>
 
-          <div className="p-4 space-y-4 bg-white">
+          <div className="p-4 space-y-4 bg-white dark:bg-zinc-900">
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-2xl font-bold">
@@ -107,14 +107,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={handleLike}
-                  className={liked ? 'text-red-500' : 'text-gray-400'}
+                  className={liked ? 'text-red-500' : 'text-gray-400 dark:text-gray-300'}
                 >
                   <Heart className={`h-5 w-5 ${liked ? 'fill-current' : ''}`} />
                 </Button>
               </div>
-              
+
               {location && (
-                <div className="flex items-center gap-1 text-gray-600">
+                <div className="flex items-center gap-1 text-gray-600 dark:text-gray-300">
                   <MapPin className="h-4 w-4" />
                   <span className="text-sm">
                     {location} {distance && `• ${distance}km away`}
@@ -126,12 +126,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             {bio && (
               <div>
                 <h3 className="font-semibold mb-2">About</h3>
-                <p className="text-sm text-gray-600">{bio}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{bio}</p>
               </div>
             )}
           </div>
 
-          <div className="p-4 border-t bg-white">
+          <div className="p-4 border-t bg-white dark:bg-zinc-900 dark:border-zinc-700">
             <Button
               onClick={onStartChat}
               className="w-full bg-purple-600 hover:bg-purple-700"

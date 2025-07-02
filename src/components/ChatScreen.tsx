@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Send, Image, Smile, MoreVertical } from 'lucide-react';
+import { Send, Image, Smile, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -111,9 +111,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ user, onBack }) => {
       {/* Header */}
       <div className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+          
           
           <div className="relative">
             <Avatar className="w-10 h-10">
@@ -133,9 +131,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ user, onBack }) => {
           </div>
         </div>
         
-        <Button variant="ghost" size="sm">
-          <MoreVertical className="w-4 h-4" />
-        </Button>
+     
       </div>
 
       {/* Messages */}

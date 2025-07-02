@@ -1,7 +1,7 @@
 import { User } from '@/types/user';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Heart, Crown } from 'lucide-react';
+import { Heart, Crown, MoreVertical } from 'lucide-react';
 import { useState } from 'react';
 
 interface ExploreCardProps {
@@ -14,7 +14,7 @@ interface ExploreCardProps {
 
 export function ExploreCard({ user, onProfileClick, onFavoriteClick, isFavorited, locationEnabled = false }: ExploreCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
-  
+
   const distance = locationEnabled && user.distance ? 
     (user.distance < 1 ? 'Nearby' : `${user.distance}mi`) : 
     'Nearby';
@@ -46,7 +46,21 @@ export function ExploreCard({ user, onProfileClick, onFavoriteClick, isFavorited
               </Badge>
             </div>
           )}
-          
+
+          {/* ⋯ Three-dot Menu */}
+          <div className="absolute top-1 left-1/2 transform -translate-x-1/2 z-10">
+            <button
+              className="p-1 rounded-full bg-white/80 backdrop-blur-md text-gray-700 hover:bg-gray-100 shadow-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                // You can hook this to a dropdown or menu logic later
+                alert(`Options for ${user.name}`);
+              }}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Favorite Button */}
           <button
             onClick={(e) => {
@@ -67,13 +81,13 @@ export function ExploreCard({ user, onProfileClick, onFavoriteClick, isFavorited
         <div className="p-2 space-y-1">
           {/* Name and Age */}
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900 text-sm truncate">{user.name}</h3>
-            <span className="text-gray-600 text-xs">{user.age}</span>
+            <h3 className="text-lg font-bold text-gray-900 truncate">{user.name}</h3>
+            <span className="text-gray-600 text-sm">{user.age}</span>
           </div>
-          
+
           {/* Distance */}
           <p className="text-gray-500 text-xs">{distance}</p>
-          
+
           {/* Top Interest */}
           <Badge variant="secondary" className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border-0 text-xs px-1.5 py-0.5 w-fit">
             {topInterest}

@@ -1,256 +1,215 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useAppContext } from '@/contexts/AppContext';
-import { supabase } from '@/lib/supabase';
+import { useState, useMemo, useEffect } from 'react';
+import { User, FilterOptions } from '@/types/user';
 import { mockUsers } from '@/data/mockUsers';
-import { Crown, MessageCircle, Heart, RefreshCw, MapPin } from 'lucide-react';
+import { UserCard } from './UserCard';
+import AdvancedFilters from './AdvancedFilters';
+import ThirstModeToggle from './ThirstModeToggle';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProfileView } from './ProfileView';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import MessagesScreen from './MessagesScreen';
 
-interface ExploreGridEnhancedProps {
-  onProfileClick?: (userId: string) => void;
-  onMessageClick?: (userId: string) => void;
+interface ExploreGridProps {
+  currentUser?: User;
 }
 
-export const ExploreGridEnhanced: React.FC<ExploreGridEnhancedProps> = ({
-  onProfileClick,
-  onMessageClick
-}) => {
-  const { isPremium, currentUser } = useAppContext();
+const ExploreGrid = ({ currentUser }: ExploreGridProps) => {
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [thirstMode, setThirstMode] = useState(false);
+  const [sortBy, setSortBy] = useState<'distance' | 'online' | 'new'>('distance');
+  const [showChat, setShowChat] = useState(false);
+  const [chatUser, setChatUser] = useState<User | null>(null);
   const { toast } = useToast();
-  const [profiles, setProfiles] = useState(mockUsers);
-  const [viewedCount, setViewedCount] = useState(0);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [sortByDistance, setSortByDistance] = useState(false);
-  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [filters, setFilters] = useState<FilterOptions>({
+    ageRange: [18, 99],
+    distance: 50,
+    bodyTypes: [],
+    tribes: [],
+    onlineOnly: false,
+    newMembers: false,
+    thirstMode: false,
+    traveling: false
+  });
 
-  const FREE_LIMIT = 60;
+  const filteredUsers = useMemo(() => {
+    let users = mockUsers.filter(user => {
+      if (user.age < filters.ageRange[0] || user.age > filters.ageRange[1]) return false;
+      if (user.distance > filters.distance) return false;
+      if (filters.onlineOnly && !user.isOnline) return false;
+      if (filters.thirstMode && !user.thirstMode) return false;
+      if (filters.bodyTypes.length > 0 && !filters.bodyTypes.includes(user.bodyType || '')) return false;
+      if (filters.tribes.length > 0 && !filters.tribes.includes(user.tribe || '')) return false;
+      return true;
+    });
 
-  const calculateDistance = () => {
-    const distances = [0.5, 1.2, 2.8, 4.1, 6.3, 8.7, 12.4];
-    return distances[Math.floor(Math.random() * distances.length)];
-  };
+    users.sort((a, b) => {
+      if (sortBy === 'distance') return a.distance - b.distance;
+      if (sortBy === 'online') return (b.isOnline ? 1 : 0) - (a.isOnline ? 1 : 0);
+      if (sortBy === 'new') return parseInt(b.id) - parseInt(a.id);
+      return 0;
+    });
 
-  const sortedProfiles = React.useMemo(() => {
-    if (!sortByDistance) return profiles;
-    
-    return [...profiles].sort(() => Math.random() - 0.5).map(user => ({
-      ...user,
-      distance: calculateDistance()
-    })).sort((a, b) => (a.distance || 0) - (b.distance || 0));
-  }, [profiles, sortByDistance]);
+    return users;
+  }, [filters, sortBy]);
 
-  const handleProfileView = (userId: string) => {
-    if (!isPremium && viewedCount >= FREE_LIMIT) {
-      setShowUpgradeModal(true);
-      return;
+  const handleInteraction = (userId: string, type: string) => {
+    console.log(`${type} interaction with user ${userId}`);
+    const user = mockUsers.find(u => u.id === userId);
+
+    let message = '';
+    switch (type) {
+      case 'tap':
+        message = `👋 Tapped ${user?.name}!`;
+        break;
+      case 'like':
+        message = `❤️ Liked ${user?.name}!`;
+        break;
+      case 'woof':
+        message = `🐺 Woofed at ${user?.name}!`;
+        break;
+      case 'flame':
+        message = `🔥 Sent flame to ${user?.name}!`;
+        break;
+      default:
+        message = `Sent ${type} to ${user?.name}!`;
     }
-    
-    setViewedCount(prev => prev + 1);
-    onProfileClick?.(userId);
+
+    toast({ title: message });
   };
 
-  const handleUpgrade = async () => {
-    if (isUpgrading) return;
-    setIsUpgrading(true);
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) {
-        toast({ title: "Please sign in first", variant: "destructive" });
-        return;
-      }
-
-      const response = await fetch(
-        'https://sstmnoilasukcxjacrjj.supabase.co/functions/v1/45785200-a879-4b5f-8db6-d160e67743dc',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            priceId: 'monthly',
-            userId: currentUser?.id,
-            successUrl: `${window.location.origin}?upgrade=success`,
-            cancelUrl: `${window.location.origin}?upgrade=cancelled`
-          })
-        }
-      );
-
-      const data = await response.json();
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-    } catch (error: any) {
-      console.error('Upgrade error:', error);
-      toast({ 
-        title: "Upgrade failed", 
-        description: error.message || "Please try again",
-        variant: "destructive" 
-      });
-    } finally {
-      setIsUpgrading(false);
-    }
+  const handleProfileTap = (user: User) => {
+    setSelectedUser(user);
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const shuffled = [...mockUsers].sort(() => Math.random() - 0.5);
-    setProfiles(shuffled);
-    
-    if (!isPremium) {
-      setViewedCount(0);
-    }
-    
-    setRefreshing(false);
-    toast({ title: "Profiles refreshed!" });
+  const handleStartChat = (user: User) => {
+    setChatUser(user);
+    setShowChat(true);
   };
 
-  const UpgradeModal = () => (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="p-6 text-center space-y-4">
-          <Crown className="w-12 h-12 text-yellow-500 mx-auto" />
-          <h3 className="text-xl font-bold">You've reached your free browsing limit</h3>
-          <p className="text-gray-600">
-            Upgrade to Tappd PRO to unlock unlimited profiles!
-          </p>
-          <div className="space-y-2">
-            <Button 
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
-              onClick={handleUpgrade}
-              disabled={isUpgrading}
-            >
-              <Crown className="w-4 h-4 mr-2" />
-              {isUpgrading ? 'Processing...' : 'Upgrade to PRO'}
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowUpgradeModal(false)}
-              className="w-full"
-            >
-              Maybe Later
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  const thirstModeUsers = filteredUsers.filter(user => user.thirstMode);
+
+  if (showChat && chatUser) {
+    return <MessagesScreen />;
+  }
+
+  if (selectedUser) {
+    return (
+      <ProfileView
+        user={selectedUser}
+        onBack={() => setSelectedUser(null)}
+        onStartChat={() => handleStartChat(selectedUser)}
+        isFavorited={favorites.has(selectedUser.id)}
+        onFavoriteToggle={() => {
+          const newFavorites = new Set(favorites);
+          if (newFavorites.has(selectedUser.id)) {
+            newFavorites.delete(selectedUser.id);
+          } else {
+            newFavorites.add(selectedUser.id);
+          }
+          setFavorites(newFavorites);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Header with controls */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold">Explore</h2>
-          {!isPremium && (
-            <p className="text-sm text-gray-500">
-              {viewedCount}/{FREE_LIMIT} profiles viewed
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => setSortByDistance(!sortByDistance)}
-            variant={sortByDistance ? "default" : "outline"}
-            size="sm"
-          >
-            <MapPin className="w-4 h-4 mr-1" />
-            {sortByDistance ? 'By Distance' : 'Sort'}
-          </Button>
-          <Button 
-            onClick={handleRefresh}
-            variant="outline"
-            size="sm"
-            disabled={refreshing}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Explore</h2>
+        <Badge variant="secondary">{filteredUsers.length} nearby</Badge>
       </div>
 
-      {/* 3-column grid */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        {sortedProfiles.slice(0, isPremium ? sortedProfiles.length : FREE_LIMIT).map((user) => (
-          <Card 
-            key={user.id} 
-            className="cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => handleProfileView(user.id)}
-          >
-            <CardContent className="p-2 sm:p-3">
-              <div className="space-y-2">
-                <div className="relative">
-                  <Avatar className="w-full aspect-square">
-                    <AvatarImage src={user.avatar_url} alt={user.name} />
-                    <AvatarFallback className="text-lg">
-                      {user.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {user.thirst_mode && (
-                    <Badge className="absolute -top-1 -right-1 bg-red-500 text-xs px-1">
-                      🔥
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="text-center space-y-1">
-                  <h3 className="font-semibold text-sm truncate">{user.name}</h3>
-                  <p className="text-xs text-gray-500">{user.age}</p>
-                  
-                  {sortByDistance && user.distance && (
-                    <p className="text-xs text-blue-500 font-medium">
-                      {user.distance} mi away
-                    </p>
-                  )}
-                  
-                  {!sortByDistance && user.location && (
-                    <p className="text-xs text-gray-400 truncate">{user.location}</p>
-                  )}
-                </div>
-                
-                <div className="flex gap-1 justify-center">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex-1 h-8 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMessageClick?.(user.id);
-                    }}
-                  >
-                    <MessageCircle className="w-3 h-3" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex-1 h-8 text-xs"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toast({ title: `Tapped ${user.name}!` });
-                    }}
-                  >
-                    <Heart className="w-3 h-3" />
-                  </Button>
-                </div>
+      <div className="flex justify-center gap-2">
+        <Button
+          variant={sortBy === 'distance' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSortBy('distance')}
+          className="flex items-center gap-1"
+        >
+          📍 Distance
+        </Button>
+        <Button
+          variant={sortBy === 'online' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSortBy('online')}
+          className="flex items-center gap-1"
+        >
+          🟢 Online
+        </Button>
+        <Button
+          variant={sortBy === 'new' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSortBy('new')}
+          className="flex items-center gap-1"
+        >
+          ✨ New
+        </Button>
+      </div>
+
+      <ThirstModeToggle
+        isActive={thirstMode}
+        onToggle={setThirstMode}
+      />
+
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="all">All ({filteredUsers.length})</TabsTrigger>
+          <TabsTrigger value="thirst">🔥 Thirst ({thirstModeUsers.length})</TabsTrigger>
+          <TabsTrigger value="filters">Filters</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all" className="mt-4">
+          <div className="grid grid-cols-1 gap-4">
+            {filteredUsers.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                onClick={() => handleProfileTap(user)}
+                onInteraction={handleInteraction}
+                showInteractions={true}
+                nameClassName="text-xl font-bold"
+              />
+            ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="thirst" className="mt-4">
+          <div className="grid grid-cols-1 gap-4">
+            {thirstModeUsers.length > 0 ? (
+              thirstModeUsers.map((user) => (
+                <UserCard
+                  key={user.id}
+                  user={user}
+                  onClick={() => handleProfileTap(user)}
+                  onInteraction={handleInteraction}
+                  showInteractions={true}
+                  nameClassName="text-xl font-bold"
+                />
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No one's feeling frisky right now 😔</p>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            )}
+          </div>
+        </TabsContent>
 
-      {showUpgradeModal && <UpgradeModal />}
+        <TabsContent value="filters" className="mt-4">
+          <AdvancedFilters
+            filters={filters}
+            onFiltersChange={setFilters}
+            isPremium={currentUser?.premium || false}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
+};
+
+export const ExploreGrid: React.FC<ExploreGridProps> = ({ ... }) => {
+  ...
 };

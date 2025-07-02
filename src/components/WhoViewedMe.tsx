@@ -1,179 +1,321 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/supabase';
-import { Heart, MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Eye, Clock, MapPin, MessageCircle, Heart } from 'lucide-react';
+import { useAppContext } from '@/contexts/AppContext';
+import { useToast } from '@/hooks/use-toast';
 
-interface ProfileVisitor {
+interface ProfileViewer {
   id: string;
-  visitor_id: string;
-  viewed_at: string;
-  visitor: {
-    id: string;
-    name: string;
-    age: number;
-    avatar_url?: string;
-    distance?: string;
-  };
+  name: string;
+  age: number;
+  photo: string;
+  location: string;
+  viewedAt: Date;
+  isOnline: boolean;
 }
 
-interface WhoViewedMeProps {
-  currentUserId: string;
-  isProUser: boolean;
-  onShowUpgrade: () => void;
-  onTapUser: (userId: string) => void;
-}
-
-export const WhoViewedMe: React.FC<WhoViewedMeProps> = ({
-  currentUserId,
-  isProUser,
-  onShowUpgrade,
-  onTapUser
-}) => {
-  const [visitors, setVisitors] = useState<ProfileVisitor[]>([]);
+const WhoViewedMeTab: React.FC = () => {
+  const { isPremium } = useAppContext();
+  const { toast } = useToast();
+  const [viewers, setViewers] = useState<ProfileViewer[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isProUser) {
-      loadProfileVisitors();
-    } else {
+    if (!isPremium) {
       setLoading(false);
+      return;
     }
-  }, [currentUserId, isProUser]);
 
-  const loadProfileVisitors = async () => {
-    try {
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-      const { data, error } = await supabase
-        .from('profile_visitors')
-        .select(`
-          *,
-          visitor:profiles!visitor_id(
-            id,
-            name,
-            age,
-            avatar_url
-          )
-        `)
-        .eq('profile_id', currentUserId)
-        .gte('viewed_at', threeDaysAgo.toISOString())
-        .order('viewed_at', { ascending: false });
-
-      if (error) throw error;
-      
-      // Add mock distance data
-      const visitorsWithDistance = (data || []).map(visitor => ({
-        ...visitor,
-        visitor: {
-          ...visitor.visitor,
-          distance: `${Math.floor(Math.random() * 10) + 1} km away`
+    // Load real profile viewers from localStorage
+    const loadViewers = () => {
+      try {
+        const savedViewers = localStorage.getItem('profileViewers');
+        if (savedViewers) {
+          const parsedViewers = JSON.parse(savedViewers).map((viewer: any) => ({
+            ...viewer,
+            viewedAt: new Date(viewer.viewedAt)
+          }));
+          console.log('📊 Loaded profile viewers:', parsedViewers.length);
+          setViewers(parsedViewers);
+        } else {
+          console.log('📊 No profile viewers found');
+          setViewers([]);
         }
-      }));
-      
-      setVisitors(visitorsWithDistance);
-    } catch (error) {
-      console.error('Error loading profile visitors:', error);
-    } finally {
+      } catch (error) {
+        console.error('❌ Error loading profile viewers:', error);
+        setViewers([]);
+      }
       setLoading(false);
+    };
+
+    loadViewers();
+
+    // Listen for new profile views
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'profileViewers') {
+        console.log('🔄 Profile viewers updated, reloading...');
+        loadViewers();
+      }
+    };
+
+    const handleCustomEvent = () => {
+      console.log('🔄 Custom profile view event, reloading...');
+      loadViewers();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('profileViewUpdated', handleCustomEvent);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('profileViewUpdated', handleCustomEvent);
+    };
+  }, [isPremium]);
+
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) {
+      return 'Just now';
+    } else if (diffMins < 60) {
+      return `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else {
+      return `${diffDays}d ago`;
     }
   };
 
-  const handleTapBack = (userId: string) => {
-    onTapUser(userId);
+  const handleTapBack = (viewer: ProfileViewer) => {
+    // Check tap limits
+    if (window.ProUtils && !window.ProUtils.canTap(isPremium)) {
+      toast({ 
+        title: "Daily tap limit reached", 
+        description: "Upgrade to PRO for unlimited taps!",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (window.ProUtils) {
+      window.ProUtils.incrementTapCount();
+    }
+
+    toast({
+      title: `💖 Tapped ${viewer.name}!`,
+      description: "They'll be notified of your interest!"
+    });
   };
 
-  if (!isProUser) {
+  const handleMessage = (viewer: ProfileViewer) => {
+    // Use the global chat function if available
+    if (window.openChatFromMessages) {
+      // Convert viewer to user format for chat
+      const user = {
+        id: viewer.id,
+        name: viewer.name,
+        photos: [viewer.photo],
+        isOnline: viewer.isOnline,
+        lastOnline: viewer.isOnline ? 'Online now' : 'Offline'
+      };
+      
+      // Create a conversation if it doesn't exist
+      const conversations = JSON.parse(localStorage.getItem('conversations') || '{}');
+      if (!conversations[user.id]) {
+        const conversationData = {
+          id: user.id,
+          name: user.name,
+          avatar: user.photos[0],
+          lastMessage: 'Say hello! 👋',
+          timestamp: new Date().toISOString(),
+          timeDisplay: new Date().toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+          }),
+          unread: false,
+          messages: []
+        };
+        conversations[user.id] = conversationData;
+        localStorage.setItem('conversations', JSON.stringify(conversations));
+        window.dispatchEvent(new CustomEvent('conversationUpdated'));
+      }
+      
+      window.openChatFromMessages(user.id);
+    } else {
+      toast({
+        title: `Opening chat with ${viewer.name}...`,
+        description: "💬 Starting conversation"
+      });
+    }
+  };
+
+  const clearViewHistory = () => {
+    localStorage.removeItem('profileViewers');
+    setViewers([]);
+    toast({
+      title: "View history cleared",
+      description: "All profile view records have been removed"
+    });
+  };
+
+  if (!isPremium) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-        <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-full p-6 mb-6">
-          <Heart className="w-12 h-12 text-purple-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Who Viewed Me</h2>
-        <p className="text-gray-600 mb-6 max-w-sm">
-          See who's been checking out your profile in the last 72 hours!
-        </p>
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-0.5 rounded-full">
-          <Button
-            onClick={onShowUpgrade}
-            className="bg-white text-purple-600 hover:bg-gray-50 px-8 py-3 rounded-full font-semibold"
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Eye className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">PRO Feature</h3>
+          <p className="text-gray-600 mb-4">Upgrade to PRO to see who viewed your profile</p>
+          <Button 
+            onClick={() => window.location.hash = '#upgrade'}
+            className="bg-yellow-500 hover:bg-yellow-600 text-white"
           >
-            💎 Upgrade to Tappd PRO
+            🚀 Upgrade to PRO
           </Button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="w-5 h-5" />
+            Profile Viewers
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center space-x-3 animate-pulse">
+                <div className="w-12 h-12 bg-gray-200 rounded-full" />
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 rounded w-1/3 mb-2" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="h-full bg-gray-50">
-      <div className="bg-white border-b border-gray-200 p-4">
-        <h1 className="text-xl font-bold text-gray-900">Who Viewed Me</h1>
-        <p className="text-sm text-gray-600">Last 72 hours</p>
-      </div>
-      
-      <div className="p-4 space-y-3">
-        {visitors.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-full p-6 mx-auto w-fit mb-4">
-              <Heart className="w-8 h-8 text-purple-600" />
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Eye className="w-5 h-5" />
+            Profile Viewers ({viewers.length})
+          </CardTitle>
+          {viewers.length > 0 && (
+            <Button
+              onClick={clearViewHistory}
+              variant="outline"
+              size="sm"
+              className="text-gray-500 hover:text-red-600"
+            >
+              Clear History
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {viewers.length === 0 ? (
+          <div className="text-center py-8">
+            <Eye className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No profile views yet</h3>
+            <p className="text-gray-600 mb-4">When people view your profile, they'll appear here</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-800 mb-2">💡 Pro Tip:</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• Complete your profile to attract more views</li>
+                <li>• Add multiple photos to stand out</li>
+                <li>• Be active in the app to increase visibility</li>
+              </ul>
             </div>
-            <p className="text-gray-600">No profile views yet</p>
-            <p className="text-sm text-gray-500 mt-1">Keep swiping to get noticed!</p>
           </div>
         ) : (
-          visitors.map((visitor) => (
-            <div
-              key={visitor.id}
-              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center space-x-4"
-            >
-              <Avatar className="w-16 h-16">
-                <AvatarImage src={visitor.visitor.avatar_url} />
-                <AvatarFallback className="bg-gradient-to-br from-purple-400 to-pink-400 text-white font-semibold">
-                  {visitor.visitor.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-1">
-                  <h3 className="font-semibold text-gray-900">
-                    {visitor.visitor.name}, {visitor.visitor.age}
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    NEW
-                  </Badge>
+          <div className="space-y-4">
+            {viewers.map((viewer) => (
+              <div key={viewer.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="relative">
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage src={viewer.photo} alt={viewer.name} />
+                    <AvatarFallback className="bg-purple-500 text-white">
+                      {viewer.name?.charAt(0) || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  {viewer.isOnline && (
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full" />
+                  )}
                 </div>
                 
-                <div className="flex items-center text-sm text-gray-600 mb-2">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  {visitor.visitor.distance || 'Nearby'}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="font-semibold">{viewer.name}, {viewer.age}</h4>
+                    {viewer.isOnline && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                        Online
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {viewer.location}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {formatTimeAgo(viewer.viewedAt)}
+                    </div>
+                  </div>
                 </div>
-                
-                <p className="text-xs text-gray-500">
-                  Viewed {new Date(visitor.viewed_at).toLocaleDateString()}
-                </p>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => handleTapBack(viewer)}
+                    variant="outline"
+                    size="sm"
+                    className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                  >
+                    <Heart className="w-3 h-3 mr-1" />
+                    Tap Back
+                  </Button>
+                  <Button
+                    onClick={() => handleMessage(viewer)}
+                    size="sm"
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                  >
+                    <MessageCircle className="w-3 h-3 mr-1" />
+                    Message
+                  </Button>
+                </div>
               </div>
-              
-              <Button
-                onClick={() => handleTapBack(visitor.visitor.id)}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-2 rounded-full font-semibold"
-              >
-                Tap Back
-              </Button>
-            </div>
-          ))
+            ))}
+
+            {viewers.length >= 10 && (
+              <div className="text-center py-4 border-t">
+                <p className="text-sm text-gray-500">Showing recent 50 profile views</p>
+                <p className="text-xs text-gray-400 mt-1">Older views are automatically removed</p>
+              </div>
+            )}
+          </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
+
+export default WhoViewedMeTab;

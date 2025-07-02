@@ -151,3 +151,35 @@
 .markdown-preview ol {
   @apply my-4 ml-6;
 }
+/* FORCE WHITE FORMS - Override shadcn dark mode inputs */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: hsl(0 0% 100%) !important; /* Pure white */
+  color: hsl(222.2 84% 4.9%) !important; /* Dark text */
+  border-color: hsl(214.3 31.8% 91.4%) !important; /* Light border */
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  background-color: hsl(0 0% 100%) !important;
+  color: hsl(222.2 84% 4.9%) !important;
+  border-color: hsl(221 83% 53%) !important; /* Focus border */
+  outline: none !important;
+  box-shadow: 0 0 0 2px hsl(221 83% 53% / 0.2) !important;
+}
+
+/* Override any shadcn form components */
+.dark .bg-input,
+.dark [style*="background-color: hsl(var(--input))"],
+.dark [class*="bg-input"] {
+  background-color: hsl(0 0% 100%) !important;
+  color: hsl(222.2 84% 4.9%) !important;
+}
+
+/* Ensure placeholder text is visible */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: hsl(215.4 16.3% 46.9%) !important; /* Muted gray */
+}

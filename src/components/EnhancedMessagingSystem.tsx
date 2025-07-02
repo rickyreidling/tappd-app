@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAppContext } from '@/contexts/AppContext';
 import { mockUsers } from '@/data/mockUsers';
-import { ArrowLeft, Send, MoreVertical, Crown } from 'lucide-react';
+import { Send, MoreVertical, Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Message {
@@ -27,7 +27,7 @@ interface Conversation {
 }
 
 interface EnhancedMessagingSystemProps {
-  selectedUserId?: string;
+  selectedUserId?: string | null;
   onBack?: () => void;
 }
 
@@ -43,49 +43,34 @@ export const EnhancedMessagingSystem: React.FC<EnhancedMessagingSystemProps> = (
   const [activeConversation, setActiveConversation] = useState<string | null>(selectedUserId || null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
-  // Mock conversations data
+  // 🔧 FIX: Update activeConversation when selectedUserId prop changes
   useEffect(() => {
-    const mockConversations: Conversation[] = [
-      {
-        id: '1',
-        participants: [currentUser?.id || 'user1', 'user2'],
-        lastMessage: {
-          id: 'm1',
-          senderId: 'user2',
-          receiverId: currentUser?.id || 'user1',
-          content: 'Hey! How are you doing?',
-          timestamp: new Date(Date.now() - 1000 * 60 * 30),
-          read: false
-        },
-        unreadCount: 2
+    setActiveConversation(selectedUserId || null);
+  }, [selectedUserId]);
+
+  // Mock conversations data using real user IDs
+  useEffect(() => {
+    // Get actual user IDs from mockUsers (excluding current user)
+    const availableUsers = mockUsers.filter(user => user.id !== currentUser?.id).slice(0, 3);
+    
+    const mockConversations: Conversation[] = availableUsers.map((user, index) => ({
+      id: (index + 1).toString(),
+      participants: [currentUser?.id || '', user.id],
+      lastMessage: {
+        id: `m${index + 1}`,
+        senderId: index === 1 ? currentUser?.id || '' : user.id, // Mix of sent/received
+        receiverId: index === 1 ? user.id : currentUser?.id || '',
+        content: [
+          'Hey! How are you doing?',
+          'Thanks for the chat!',
+          'Would love to meet up sometime!'
+        ][index],
+        timestamp: new Date(Date.now() - 1000 * 60 * (30 + index * 60)),
+        read: index === 1 // Only middle message is read
       },
-      {
-        id: '2', 
-        participants: [currentUser?.id || 'user1', 'user3'],
-        lastMessage: {
-          id: 'm2',
-          senderId: currentUser?.id || 'user1',
-          receiverId: 'user3',
-          content: 'Thanks for the chat!',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-          read: true
-        },
-        unreadCount: 0
-      },
-      {
-        id: '3',
-        participants: [currentUser?.id || 'user1', 'user4'],
-        lastMessage: {
-          id: 'm3',
-          senderId: 'user4',
-          receiverId: currentUser?.id || 'user1',
-          content: 'Would love to meet up sometime!',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5),
-          read: false
-        },
-        unreadCount: 1
-      }
-    ];
+      unreadCount: index === 1 ? 0 : index + 1
+    }));
+    
     setConversations(mockConversations);
   }, [currentUser]);
 
@@ -119,6 +104,9 @@ export const EnhancedMessagingSystem: React.FC<EnhancedMessagingSystemProps> = (
         }
       ];
       setMessages(mockMessages);
+    } else {
+      // Clear messages when no active conversation
+      setMessages([]);
     }
   }, [activeConversation, currentUser]);
 
@@ -190,9 +178,6 @@ export const EnhancedMessagingSystem: React.FC<EnhancedMessagingSystemProps> = (
       <div className="flex flex-col h-[calc(100vh-8rem)]">
         {/* Chat Header */}
         <div className="flex items-center gap-3 p-4 border-b bg-white">
-          <Button onClick={() => setActiveConversation(null)} variant="ghost" size="sm">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
           <Avatar className="w-10 h-10">
             <AvatarImage src={otherUser?.avatar_url} />
             <AvatarFallback>{otherUser?.name.charAt(0)}</AvatarFallback>
@@ -282,11 +267,6 @@ export const EnhancedMessagingSystem: React.FC<EnhancedMessagingSystemProps> = (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Messages</h2>
-        {onBack && (
-          <Button onClick={onBack} variant="ghost" size="sm">
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        )}
       </div>
 
       <div className="space-y-2">

@@ -8,6 +8,18 @@
     <meta name="description" content="Connect with nearby gay men through Prowlr's community with both free and premium plans." />
     <meta name="author" content="Famous.ai" />
     <link rel="icon" type="image/svg+xml" href="/placeholder.svg" />
+<script>
+  (function() {
+    try {
+      const saved = localStorage.getItem("theme") || "light";
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const applied = saved === "system" ? (prefersDark ? "dark" : "light") : saved;
+      document.documentElement.classList.add(applied);
+    } catch (e) {
+      document.documentElement.classList.add("light");
+    }
+  })();
+</script>
 
     <meta property="og:title" content="Prowlr: Gay Social Network" />
     <meta property="og:description" content="Connect with nearby gay men through Prowlr's community with both free and premium plans." />

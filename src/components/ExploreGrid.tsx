@@ -175,27 +175,31 @@ const ExploreGrid = ({ currentUser }: ExploreGridProps) => {
           <div className="grid grid-cols-1 gap-4">
             {filteredUsers.map((user) => (
               <UserCard
-                key={user.id}
-                user={user}
-                onClick={() => handleProfileTap(user)}
-                onInteraction={handleInteraction}
-                showInteractions={true}
-              />
+  key={user.id}
+  user={user}
+  onClick={() => handleProfileTap(user)}
+  onInteraction={handleInteraction}
+  showInteractions={true}
+  nameClassName="text-xl font-bold"
+/>
+
             ))}
           </div>
         </TabsContent>
         
         <TabsContent value="thirst" className="mt-4">
           <div className="grid grid-cols-1 gap-4">
-            {thirstModeUsers.length > 0 ? (
-              thirstModeUsers.map((user) => (
-                <UserCard
-                  key={user.id}
-                  user={user}
-                  onClick={() => handleProfileTap(user)}
-                  onInteraction={handleInteraction}
-                  showInteractions={true}
-                />
+            {thirstModeUsers.map((user) => (
+  <UserCard
+    key={user.id}
+    user={user}
+    onClick={() => handleProfileTap(user)}
+    onInteraction={handleInteraction}
+    showInteractions={true}
+    nameClassName="text-xl font-bold"
+  />
+))}
+
               ))
             ) : (
               <div className="text-center py-12">
@@ -217,4 +221,6 @@ const ExploreGrid = ({ currentUser }: ExploreGridProps) => {
   );
 };
 
-export default ExploreGrid;
+export const ExploreGrid: React.FC<ExploreGridProps> = ({ ... }) => {
+  ...
+};

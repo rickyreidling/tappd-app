@@ -1,66 +1,43 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import StripeCheckout from './StripeCheckout';
 
 const PricingPlans: React.FC = () => {
-  const [isYearly, setIsYearly] = useState(false);
-
-  const monthlyPlans = [
-  {
-    name: 'Monthly',
-    price: '$9.99',
-    period: '/month',
-    checkoutUrl: 'https://buy.stripe.com/28E8wR0Ku5tM5ck1eT9Zm03',
-    popular: false
-  },
-  {
-    name: '3 Months',
-    price: '$24.99',
-    period: '/3 months',
-    checkoutUrl: 'https://buy.stripe.com/cNibJ350K6xQ2084r59Zm02',
-    popular: true,
-    savings: 'Save 17%'
-  },
-  {
-    name: '6 Months',
-    price: '$39.99',
-    period: '/6 months',
-    checkoutUrl: 'https://buy.stripe.com/dRm9AV3WG4pIeMUg9N9Zm01',
-    popular: false,
-    savings: 'Save 33%'
-  }
-];
-
-
-  const currentPlans = isYearly ? yearlyPlans : monthlyPlans;
+  const plans = [
+    {
+      name: 'Monthly',
+      price: '$9.99',
+      period: '/month',
+      checkoutUrl: 'https://buy.stripe.com/28E8wR0Ku5tM5ck1eT9Zm03',
+      popular: false
+    },
+    {
+      name: '3 Months',
+      price: '$24.99',
+      period: '/3 months',
+      checkoutUrl: 'https://buy.stripe.com/cNibJ350K6xQ2084r59Zm02',
+      popular: true,
+      savings: 'Save 17%'
+    },
+    {
+      name: '6 Months',
+      price: '$39.99',
+      period: '/6 months',
+      checkoutUrl: 'https://buy.stripe.com/dRm9AV3WG4pIeMUg9N9Zm01',
+      popular: false,
+      savings: 'Save 33%'
+    }
+  ];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-center text-2xl">Choose Your Plan</CardTitle>
-        <div className="flex items-center justify-center space-x-2">
-          <Label htmlFor="billing-toggle">Monthly</Label>
-          <Switch
-            id="billing-toggle"
-            checked={isYearly}
-            onCheckedChange={setIsYearly}
-          />
-          <Label htmlFor="billing-toggle">Yearly</Label>
-          {isYearly && (
-            <Badge className="bg-green-100 text-green-800 ml-2">
-              Save 33%
-            </Badge>
-          )}
-        </div>
       </CardHeader>
       <CardContent>
-        <div className={`grid gap-4 ${
-          isYearly ? 'grid-cols-1 max-w-md mx-auto' : 'grid-cols-1 md:grid-cols-3'
-        }`}>
-          {currentPlans.map((plan, index) => (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+          {plans.map((plan, index) => (
             <div 
               key={index} 
               className={`relative p-6 rounded-lg border-2 transition-all ${
@@ -79,7 +56,7 @@ const PricingPlans: React.FC = () => {
                 <h3 className="text-xl font-bold">{plan.name}</h3>
                 
                 <div>
-                  <span className="text-3xl font-bold">{plan.price}</span>
+                  <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
                   <span className="text-gray-600">{plan.period}</span>
                 </div>
                 
@@ -89,13 +66,11 @@ const PricingPlans: React.FC = () => {
                   </Badge>
                 )}
                 
-               <a href={plan.checkoutUrl} target="_blank" rel="noopener noreferrer">
-  <button className="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded">
-    {plan.popular ? 'Get PRO Now' : 'Select Plan'}
-  </button>
-</a>
-
-              
+                <a href={plan.checkoutUrl} target="_blank" rel="noopener noreferrer">
+                  <button className="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded">
+                    {plan.popular ? 'Get PRO Now' : 'Select Plan'}
+                  </button>
+                </a>
               </div>
             </div>
           ))}
