@@ -1319,7 +1319,29 @@ window.ProUtils = ProUtils;
 
 export default function MainApp() {
   const { currentUser, userProfile, isPremium } = useAppContext();
-  const [activeTab, setActiveTab] = useState('explore');
+  
+  // Modified: Initialize activeTab based on profile completion
+  const [activeTab, setActiveTab] = useState(() => {
+    // Check if user has completed their profile
+    const user = localStorage.getItem('user');
+    const hasCompletedProfile = localStorage.getItem('profileCompleted');
+    
+    try {
+      if (user && user !== 'null') {
+        const userData = JSON.parse(user);
+        // If profile is not completed or it's a first-time login, go to profile
+        if (!hasCompletedProfile || !userData.profileComplete) {
+          return 'profile';
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing user data:', e);
+      return 'profile'; // Default to profile on error
+    }
+    
+    return 'explore'; // Default to explore if profile is complete
+  });
+  
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   
@@ -1343,6 +1365,30 @@ export default function MainApp() {
       document.documentElement.classList.remove('dark-mode');
       console.log('🌞 Initialized dark mode to OFF');
     }
+
+    // NEW: One-time profile completion check on component mount
+    const checkInitialProfileStatus = () => {
+      const user = localStorage.getItem('user');
+      const hasCompletedProfile = localStorage.getItem('profileCompleted');
+      const isFirstLogin = localStorage.getItem('isFirstLogin') === 'true';
+      
+      try {
+        if (user && user !== 'null') {
+          const userData = JSON.parse(user);
+          
+          // Only redirect to profile if this is explicitly a first login OR profile is incomplete
+          if (isFirstLogin && !hasCompletedProfile) {
+            console.log('🔄 First login detected - redirecting to profile');
+            setActiveTab('profile');
+            window.location.hash = '#profile';
+            // Clear the first login flag so this doesn't happen again
+            localStorage.setItem('isFirstLogin', 'false');
+          }
+        }
+      } catch (e) {
+        console.error('Error checking profile status:', e);
+      }
+    };
 
     const checkAuth = () => {
       const user = localStorage.getItem('user');
@@ -1374,6 +1420,8 @@ export default function MainApp() {
       }
     };
 
+    // Run checks
+    checkInitialProfileStatus(); // Only runs once on mount
     checkAuth();
     checkDarkMode();
     
@@ -1424,7 +1472,7 @@ export default function MainApp() {
       delete window.openChatFromMessages;
       delete window.ProUtils;
     };
-  }, []);
+  }, []); // Removed activeTab dependency
 
   // NEW: Add hash navigation useEffect
   useEffect(() => {
@@ -1447,6 +1495,31 @@ export default function MainApp() {
     };
   }, []);
 
+  // NEW: Function to handle profile completion
+  const handleProfileComplete = () => {
+    console.log('✅ Profile completed - marking as complete and navigating to explore');
+    
+    // Mark profile as completed
+    localStorage.setItem('profileCompleted', 'true');
+    localStorage.setItem('isFirstLogin', 'false');
+    
+    // Update user data to include profile completion
+    const user = localStorage.getItem('user');
+    if (user && user !== 'null') {
+      try {
+        const userData = JSON.parse(user);
+        userData.profileComplete = true;
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (e) {
+        console.error('Error updating user profile completion:', e);
+      }
+    }
+    
+    // Navigate to explore
+    setActiveTab('explore');
+    window.location.hash = '#explore';
+  };
+
   if (!isLoggedIn) return <SignupForm />;
 
   const renderScreen = () => {
@@ -1466,18 +1539,40 @@ export default function MainApp() {
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-white">Profile</h2>
                 {isPremium && <Badge className="bg-yellow-500 text-white">PRO</Badge>}
+                {/* NEW: Show completion status */}
+                {!localStorage.getItem('profileCompleted') && (
+                  <Badge className="bg-orange-500 text-white text-xs">Complete Your Profile</Badge>
+                )}
               </div>
-              <Button
-                onClick={() => {
-                  setActiveTab('settings');
-                  window.location.hash = '#settings';
-                }}
-                variant="outline"
-                size="sm"
-                className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-black"
-              >
-                ⚙️ Settings
-              </Button>
+              <div className="flex gap-2">
+                {/* NEW: Skip profile completion button */}
+                {!localStorage.getItem('profileCompleted') && (
+                  <Button
+                    onClick={() => {
+                      localStorage.setItem('profileCompleted', 'true');
+                      localStorage.setItem('isFirstLogin', 'false');
+                      setActiveTab('explore');
+                      window.location.hash = '#explore';
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="bg-yellow-500/20 border-yellow-300 text-white hover:bg-yellow-500 hover:text-white"
+                  >
+                    Skip & Explore
+                  </Button>
+                )}
+                <Button
+                  onClick={() => {
+                    setActiveTab('settings');
+                    window.location.hash = '#settings';
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/10 border-white/20 text-white hover:bg-white hover:text-black"
+                >
+                  ⚙️ Settings
+                </Button>
+              </div>
             </div>
             
             {/* CONDITIONAL Dark mode CSS - only when darkMode is true */}
@@ -1555,7 +1650,7 @@ export default function MainApp() {
             {/* ProfileForm wrapped with conditional dark mode class */}
             <div className={darkMode ? 'dark-mode-profile' : ''}>
               <ProfileForm 
-                onComplete={() => setActiveTab('explore')} 
+                onComplete={handleProfileComplete} // Updated to use new function
                 showSettingsButton={false}
               />
             </div>

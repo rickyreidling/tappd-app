@@ -25,4 +25,4 @@ dist-ssr
 
 # Git remote origin fix
 # Remove any cached git remote references
-.git/config
+.git/configtappd-app.zip

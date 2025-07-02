@@ -1,4 +1,4 @@
-// SignupForm.jsx (Enhanced with TOS & Privacy Modals)
+// SignupForm.jsx (Enhanced with TOS & Privacy Modals + Profile-First Navigation)
 
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
@@ -63,9 +63,19 @@ const SignupForm = ({ onLogin = null }) => {
   }, []);
 
   const manualLogin = (userData, token) => {
+    // Store user data and token
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('token', token);
     localStorage.setItem('demo_user_' + userData.email, JSON.stringify(userData));
+    
+    // NEW: Set flags for profile-first navigation
+    localStorage.setItem('isFirstLogin', 'true');
+    localStorage.removeItem('profileCompleted'); // Ensure they go to profile first
+    
+    console.log('🔄 SignupForm: Set isFirstLogin=true, removed profileCompleted');
+    console.log('📍 User will be redirected to profile page after login');
+    
+    // Reload to trigger MainApp
     window.location.reload();
   };
 
@@ -86,6 +96,7 @@ const SignupForm = ({ onLogin = null }) => {
     setIsLoading(true);
     try {
       if (isSignUp) {
+        // Sign Up Flow
         await new Promise(res => setTimeout(res, 1500));
         toast({
           title: 'Check your email! 📧',
@@ -95,17 +106,37 @@ const SignupForm = ({ onLogin = null }) => {
           const mockUser = {
             id: 'demo-user-' + Date.now(),
             email: formData.email,
-            email_confirmed_at: new Date().toISOString()
+            email_confirmed_at: new Date().toISOString(),
+            profileComplete: false // NEW: Mark profile as incomplete for new users
           };
           const mockToken = 'demo-token-' + Date.now();
+          
+          console.log('✨ New user signup completed - will redirect to profile');
           manualLogin(mockUser, mockToken);
         }, 3000);
       } else {
+        // Sign In Flow
         await new Promise(res => setTimeout(res, 1000));
         const existingUser = localStorage.getItem('demo_user_' + formData.email);
         if (existingUser) {
           const userData = JSON.parse(existingUser);
           const mockToken = 'demo-token-' + Date.now();
+          
+          // Check if this is a returning user with completed profile
+          const hasCompletedProfile = localStorage.getItem('profileCompleted');
+          const isReturningUser = userData.profileComplete && hasCompletedProfile;
+          
+          if (isReturningUser) {
+            console.log('👋 Returning user with complete profile - allowing normal login');
+            // For returning users with complete profiles, don't force profile page
+            localStorage.setItem('isFirstLogin', 'false');
+          } else {
+            console.log('🔄 User with incomplete profile - will redirect to profile');
+            // For users without complete profiles, redirect to profile
+            localStorage.setItem('isFirstLogin', 'true');
+            localStorage.removeItem('profileCompleted');
+          }
+          
           manualLogin(userData, mockToken);
         } else {
           throw new Error('Invalid email or password. Please sign up first.');
@@ -184,6 +215,16 @@ const SignupForm = ({ onLogin = null }) => {
             </button>
           </div>
         </form>
+        
+        {/* NEW: Show guidance for new users */}
+        {isSignUp && (
+          <div className="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+            <p className="text-sm text-purple-700 text-center">
+              🎉 After signup, you'll complete your profile to start exploring!
+            </p>
+          </div>
+        )}
+        
         <TermsOfService open={showTerms} onClose={() => setShowTerms(false)} />
         <PrivacyPolicy open={showPrivacy} onClose={() => setShowPrivacy(false)} />
       </div>
